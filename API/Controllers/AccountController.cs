@@ -41,10 +41,30 @@ namespace API.Controllers
             return user;
         
         }
+        [HttpPost("login")]
+        public async Task<ActionResult<AppUser>> Login(LoginDto loginDto)
+        {
+            var user = await _context.Users
+                .SingleOrDefaultAsync(x => x.UserName == loginDto.Username); // we get the user from the database
+
+            if (User == null) return Unauthorized("Invalid denis");
+            
+            using var hmac = new HMACSHA512(user.PasswordSalt); //we give the PasswordSalt( hmac.key, so it can compare the passowrd in the lines below.)
+
+            var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(loginDto.Password));
+
+            for(int i = 0; i < computedHash.Length; i++)
+            {
+                if (computedHash[i] != user.PasswordHash[i]) return Unauthorized("Invalid password");
+            }
+
+            return user;
+
+        }
 
         private async Task<bool> UserExists(string Username)
         {
-            return await _context.Users.AnyAsync(x => x.UserName == Username.ToLower());
+            return await _context.Users.AnyAsync(x => x.UserName == Username.ToLower());            
         }
 
     }
