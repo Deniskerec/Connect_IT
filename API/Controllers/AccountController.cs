@@ -1,7 +1,8 @@
-
+//register and login users 
 using API.data;
 using API.DTOs;
 using API.Entities;
+using API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
@@ -13,14 +14,16 @@ namespace API.Controllers
     public class AccountController : BaseApiController
     {
         private readonly DataContext _context;
-        public AccountController(DataContext context)
+        private readonly ITokenService _tokenService;
+        public AccountController(DataContext context,ITokenService tokenService )
         {
+            _tokenService = tokenService;
             _context = context;
         }
 
         [HttpPost("register")]
         //sendin thigs from the webapp body need to be send as a body.
-        public async Task<ActionResult<AppUser>> Register(RegisterDto registerDto)                          //our controller doesnt know where the data is comming from, this is handeled by [ApiContoller] /api/contolerrs/BaseApiController.cs
+        public async Task<ActionResult<UserDTO>> Register(RegisterDto registerDto)                          //our controller doesnt know where the data is comming from, this is handeled by [ApiContoller] /api/contolerrs/BaseApiController.cs
         {
             if(await UserExists(registerDto.Username)) 
             {
@@ -38,11 +41,14 @@ namespace API.Controllers
             _context.Users.Add(user);//This is saying to Entity, that we want to add this to our users collection/table. - This is only tracking not adding 
             await _context.SaveChangesAsync();//Here we actually call the database and we save our user to our users database table
 
-            return user;
+            return new UserDTO{
+                Username = user.UserName,
+                Token =_tokenService.CreateToken(user)
+            };
         
         }
         [HttpPost("login")]
-        public async Task<ActionResult<AppUser>> Login(LoginDto loginDto)
+        public async Task<ActionResult<UserDTO>> Login(LoginDto loginDto)
         {
             var user = await _context.Users
                 .SingleOrDefaultAsync(x => x.UserName == loginDto.Username); // we get the user from the database
@@ -58,7 +64,10 @@ namespace API.Controllers
                 if (computedHash[i] != user.PasswordHash[i]) return Unauthorized("Invalid password");
             }
 
-            return user;
+         return new UserDTO{
+                Username = user.UserName,
+                Token =_tokenService.CreateToken(user)
+            };
 
         }
 
